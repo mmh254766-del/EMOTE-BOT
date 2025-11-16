@@ -19,6 +19,7 @@ from cfonts import render, say
 from aiohttp import web
 
 # ----------- API HANDLER -----------
+
 async def api_handler(request):
     teamcode = request.rel_url.query.get('teamcode')
 
@@ -26,22 +27,21 @@ async def api_handler(request):
         return web.json_response({"status": "error", "message": "Missing teamcode"}, status=400)
 
     try:
-        # একই কাজ যা /x/ কমান্ড করে
         EM = await GenJoinSquadsPacket(teamcode, key, iv)
         await SEndPacKeT(whisper_writer, online_writer, 'OnLine', EM)
         return web.json_response({"status": "success", "message": f"Joined team {teamcode}"})
     except Exception as e:
         return web.json_response({"status": "error", "message": str(e)})
 
-# ----------- SERVER START -----------
+
+# ----------- EMOTE API (4 UID Supported) -----------
 
 async def emote_api_handler(request):
     try:
         emoteid = request.rel_url.query.get('emoteid')
         if not emoteid:
             return web.json_response({'status': 'error', 'message': 'Missing emoteid'}, status=400)
-        
-        # collect up to 4 UIDs
+
         uids = []
         for i in range(1, 5):
             uid_val = request.rel_url.query.get(f'uid{i}')
@@ -57,31 +57,61 @@ async def emote_api_handler(request):
         if key is None or iv is None or region is None:
             return web.json_response({'status': 'error', 'message': 'Bot not ready'}, status=503)
 
-        # send emote to each UID
         for uid in uids:
             H = await Emote_k(uid, int(emoteid), key, iv, region)
             await SEndPacKeT(whisper_writer, online_writer, 'OnLine', H)
 
         return web.json_response({'status': 'ok', 'message': f'Sent emote {emoteid} to {uids}'})
+
     except Exception as e:
         return web.json_response({'status': 'error', 'message': str(e)}, status=500)
 
-#EMOTES BY PARAHEX X CODEX
+
+# ----------- LEAVE API (Fix Applied) -----------
+
+async def leave_api_handler(request):
+    try:
+        uid_val = request.rel_url.query.get('uid')
+
+        if key is None or iv is None:
+            return web.json_response({'status': 'error', 'message': 'Bot not ready'}, status=503)
+
+        if uid_val:
+            try:
+                uid_val = int(uid_val)
+            except:
+                return web.json_response({'status': 'error', 'message': 'Invalid uid'}, status=400)
+            leave_packet = await ExiT(uid_val, key, iv)
+        else:
+            leave_packet = await ExiT(None, key, iv)
+
+        await SEndPacKeT(whisper_writer, online_writer, 'OnLine', leave_packet)
+
+        return web.json_response({'status': 'ok', 'message': 'Leave command executed'})
+
+    except Exception as e:
+        return web.json_response({'status': 'error', 'message': str(e)}, status=500)
+
+
+
+# ----------- SERVER START -----------
 
 async def start_api_server():
     app = web.Application()
+
     app.router.add_get('/api', api_handler)
-    # register the emote endpoint so /api/emote works
     app.router.add_get('/api/emote', emote_api_handler)
+    app.router.add_get('/api/leave', leave_api_handler)
 
     runner = web.AppRunner(app)
     await runner.setup()
-    # use PORT env so Render (or similar PaaS) can bind correctly
     port = int(os.getenv("PORT", 8080))
     site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
+
     print(f"[✅] API server running on http://0.0.0.0:{port}/api")
-    print(f"[✅] Emote API running on http://0.0.0.0:{port}/api/emote?emoteid=123&uid=111")
+    print(f"[✅] Emote API → /api/emote?emoteid=123&uid1=111&uid2=222&uid3=333&uid4=444")
+    print(f"[✅] Leave API → /api/leave or /api/leave?uid=123")
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  
 
@@ -599,7 +629,7 @@ async def process_api_queue():
 async def MaiiiinE():
     global key, iv, region  # <-- অবশ্যই ফাংশনের শুরুতে লিখো
 
-    Uid , Pw = '4152098890','2371E7290309A16F367CA864A627D8827A4B27C18BD87B110C1BD62EBC9602C6'
+    Uid , Pw = '4207496577','606840821F88420DC9AA5697481988C34714DB1495534DA63715821EF504CAAE'
     
     open_id , access_token = await GeNeRaTeAccEss(Uid , Pw)
     if not open_id or not access_token: 
